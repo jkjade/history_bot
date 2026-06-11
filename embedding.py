@@ -15,7 +15,7 @@ def _get_model() -> SentenceTransformer:
 def embed_chunks(chunks: list[dict]) -> list[dict]:
     model = _get_model()
     texts = [chunk["text"] for chunk in chunks]
-    vectors = model.encode(texts, show_progress_bar=True)
+    vectors = model.encode(texts, batch_size=1, show_progress_bar=True)
     return [
         {
             "source": chunk["source"],
