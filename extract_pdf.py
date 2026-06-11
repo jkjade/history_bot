@@ -3,7 +3,6 @@ from docling.document_converter import DocumentConverter
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions
 from docling.document_converter import PdfFormatOption
-from docling.datamodel.document import PictureItem
 
 
 def extract_pdf(pdf_path: str) -> dict:
@@ -27,7 +26,10 @@ def extract_pdf(pdf_path: str) -> dict:
     for item, _ in doc.iterate_items():
         label = item.label.value if hasattr(item.label, "value") else str(item.label)
 
-        if label in ("text", "paragraph", "section_header", "title", "list_item"):
+        if label in ("section_header", "title"):
+            items.append({"type": "heading", "content": item.text})
+
+        elif label in ("text", "paragraph", "list_item"):
             items.append({"type": "text", "content": item.text})
 
         elif label == "table":
