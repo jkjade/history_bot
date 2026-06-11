@@ -66,10 +66,3 @@ def chunk_pdf(pdf_path: str) -> list[dict]:
     flush()
     return chunks
 
-
-if __name__ == "__main__":
-    chunks = chunk_pdf("data/1_음양오행으로보는우리문화.pdf")
-    for i, chunk in enumerate(chunks):
-        print(f"=== Chunk {i} | heading: {repr(chunk['heading'])} ===")
-        print(chunk["text"])
-        print()
