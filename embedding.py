@@ -40,11 +40,3 @@ def embed_all_pdfs(data_dir: str = "data") -> list[dict]:
 
     print(f"\n총 {len(all_chunks)}개 청크 임베딩 중...")
     return embed_chunks(all_chunks)
-
-
-if __name__ == "__main__":
-    results = embed_all_pdfs()
-    print(f"\n완료: {len(results)}개 청크 임베딩 생성")
-    print(f"임베딩 차원: {results[0]['embedding'].shape}")
-    for r in results[:3]:
-        print(f"  [{r['source']}] {r['heading']!r} → {r['text'][:40]!r}...")

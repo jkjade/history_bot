@@ -2,37 +2,49 @@ import json
 import numpy as np
 import faiss
 from pathlib import Path
-from embedding import embed_all_pdfs
+from rank_bm25 import BM25Okapi
 
-INDEX_PATH = "faiss.index"
-META_PATH = "faiss_meta.json"
+RESULTS_DIR = Path("data/results")
+INDEX_PATH = RESULTS_DIR / "faiss.index"
+META_PATH = RESULTS_DIR / "faiss_meta.json"
+
+_index = None
+_meta = None
+_bm25 = None
 
 
-def build_and_save(data_dir: str = "data"):
-    results = embed_all_pdfs(data_dir)
+def build_and_save():
+    vectors = np.load(RESULTS_DIR / "3_embeddings.npy").astype(np.float32)
+    chunks = json.loads((RESULTS_DIR / "2_chunks.json").read_text())
 
-    vectors = np.array([r["embedding"] for r in results], dtype=np.float32)
     faiss.normalize_L2(vectors)
-
     index = faiss.IndexFlatIP(vectors.shape[1])
     index.add(vectors)
 
-    faiss.write_index(index, INDEX_PATH)
+    faiss.write_index(index, str(INDEX_PATH))
 
-    meta = [{"source": r["source"], "heading": r["heading"], "text": r["text"]} for r in results]
-    Path(META_PATH).write_text(json.dumps(meta, ensure_ascii=False, indent=2))
+    meta = [{"source": c["source"], "heading": c["heading"], "text": c["text"]} for c in chunks]
+    META_PATH.write_text(json.dumps(meta, ensure_ascii=False, indent=2))
 
-    print(f"저장 완료: {index.ntotal}개 벡터 → {INDEX_PATH}, {META_PATH}")
+    print(f"저장 완료: {index.ntotal}개 벡터 → {INDEX_PATH}")
+
+
+def _tokenize(text: str) -> list[str]:
+    return text.split()
 
 
 def load():
-    index = faiss.read_index(INDEX_PATH)
-    meta = json.loads(Path(META_PATH).read_text())
-    return index, meta
+    global _index, _meta, _bm25
+    if _index is None:
+        _index = faiss.read_index(str(INDEX_PATH))
+        _meta = json.loads(Path(META_PATH).read_text())
+        corpus = [_tokenize(m["text"]) for m in _meta]
+        _bm25 = BM25Okapi(corpus)
+    return _index, _meta, _bm25
 
 
 def search(query_embedding: np.ndarray, top_k: int = 5) -> list[dict]:
-    index, meta = load()
+    index, meta, _ = load()
 
     vec = np.array([query_embedding], dtype=np.float32)
     faiss.normalize_L2(vec)
