@@ -30,6 +30,40 @@ def _item_to_text(item: dict) -> str:
     return ""
 
 
+def chunk_items(items: list[dict]) -> list[dict]:
+    chunks = []
+    current_heading = ""
+    current_body = []
+
+    def flush():
+        if not current_body:
+            return
+        text_parts = []
+        if current_heading:
+            text_parts.append(current_heading)
+        for item in current_body:
+            t = _item_to_text(item)
+            if t:
+                text_parts.append(t)
+        chunks.append({
+            "heading": current_heading,
+            "text": "\n".join(text_parts),
+        })
+
+    for item in items:
+        if item["type"] == "heading":
+            flush()
+            current_heading = _clean_text(item["content"])
+            current_body = []
+        elif item["type"] == "text" and _is_noise(item["content"]):
+            continue
+        else:
+            current_body.append(item)
+
+    flush()
+    return chunks
+
+
 def chunk_pdf(pdf_path: str) -> list[dict]:
     items = extract_pdf(pdf_path)
 
