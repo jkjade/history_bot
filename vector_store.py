@@ -44,5 +44,34 @@ def search(query_embedding: np.ndarray, top_k: int = 5) -> list[dict]:
     ]
 
 
+def hybrid_search(query: str, query_embedding: np.ndarray, top_k: int = 5, rrf_k: int = 60) -> list[dict]:
+    """FAISS + BM25 결과를 RRF(Reciprocal Rank Fusion)로 결합.
+    RRF score = Σ 1/(rrf_k + rank). 점수 정규화 없이 순위만 사용."""
+    index, meta, bm25 = load()
+    candidate_k = min(top_k * 10, len(meta))
+
+    # FAISS 검색 → 순위 목록
+    vec = np.array([query_embedding], dtype=np.float32)
+    faiss.normalize_L2(vec)
+    _, vec_indices = index.search(vec, candidate_k)
+    vec_ranks = {int(idx): rank for rank, idx in enumerate(vec_indices[0])}
+
+    # BM25 검색 → 순위 목록
+    bm25_scores = bm25.get_scores(_tokenize(query))
+    bm25_ranked = np.argsort(bm25_scores)[::-1][:candidate_k]
+    bm25_ranks = {int(idx): rank for rank, idx in enumerate(bm25_ranked)}
+
+    # RRF 점수 합산
+    all_indices = set(vec_ranks) | set(bm25_ranks)
+    rrf_scores = {
+        idx: (1 / (rrf_k + vec_ranks[idx]) if idx in vec_ranks else 0)
+             + (1 / (rrf_k + bm25_ranks[idx]) if idx in bm25_ranks else 0)
+        for idx in all_indices
+    }
+
+    top_indices = sorted(rrf_scores, key=lambda i: rrf_scores[i], reverse=True)[:top_k]
+    return [{"score": rrf_scores[idx], **meta[idx]} for idx in top_indices]
+
+
 if __name__ == "__main__":
     build_and_save()
